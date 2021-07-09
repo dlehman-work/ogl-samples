@@ -8,15 +8,8 @@ namespace
 	std::string const SAMPLE_GEOMETRY_SHADER("gl-400/tess.geom");
 	std::string const SAMPLE_FRAGMENT_SHADER("gl-400/tess.frag");
 
-	GLsizei const VertexCount(4);
-	GLsizeiptr const VertexSize = VertexCount * sizeof(glf::vertex_v2fc4f);
-	glf::vertex_v2fc4f const VertexData[VertexCount] =
-	{
-		glf::vertex_v2fc4f(glm::vec2(-1.0f,-1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)),
-		glf::vertex_v2fc4f(glm::vec2( 1.0f,-1.0f), glm::vec4(1.0f, 1.0f, 0.0f, 1.0f)),
-		glf::vertex_v2fc4f(glm::vec2( 1.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f)),
-		glf::vertex_v2fc4f(glm::vec2(-1.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f))
-	};
+	GLsizeiptr VertexSize;
+	std::vector<glf::vertex_v2fc4f> VertexData;
 
 	GLuint ProgramName(0);
 	GLuint ArrayBufferName(0);
@@ -84,9 +77,33 @@ private:
 
 	bool initBuffer()
 	{
+        const int NTILES = 8;
+        const float WIDTH = 64.0f;
+        const float HALF = WIDTH / 2.0f;
+        const float INC = WIDTH / NTILES;
+        int tilex, tiley;
+        float x, y, xx, yy;
+        y = -HALF;
+        for (tiley = 0; tiley < NTILES; tiley++)
+        {
+            x = -HALF;
+            yy = y + INC;
+            for (tilex = 0; tilex < NTILES; tilex++)
+            {
+                xx = x + INC;
+                VertexData.push_back(glf::vertex_v2fc4f(glm::vec2( x,  y), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)));
+                VertexData.push_back(glf::vertex_v2fc4f(glm::vec2(xx,  y), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f)));
+                VertexData.push_back(glf::vertex_v2fc4f(glm::vec2(xx, yy), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)));
+                VertexData.push_back(glf::vertex_v2fc4f(glm::vec2( x, yy), glm::vec4(1.0f, 1.0f, 0.0f, 1.0f)));
+                x = xx;
+            }
+            y = yy;
+        }
+
+        VertexSize = VertexData.size() * sizeof(glf::vertex_v2fc4f);
 		glGenBuffers(1, &ArrayBufferName);
 		glBindBuffer(GL_ARRAY_BUFFER, ArrayBufferName);
-		glBufferData(GL_ARRAY_BUFFER, VertexSize, VertexData, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, VertexSize, VertexData.data(), GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		return this->checkError("initBuffer");
@@ -122,7 +139,7 @@ private:
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 		glm::mat4 Projection = glm::perspective(glm::pi<float>() * 0.25f, WindowSize.x / WindowSize.y, 0.1f, 100.0f);
-		glm::mat4 Model = glm::mat4(1.0f);
+		glm::mat4 Model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -70.0f));
 		glm::mat4 MVP = Projection * this->view() * Model;
 
 		glViewport(0, 0, static_cast<GLsizei>(WindowSize.x), static_cast<GLsizei>(WindowSize.y));
@@ -132,10 +149,10 @@ private:
 		glUniformMatrix4fv(UniformMVP, 1, GL_FALSE, &MVP[0][0]);
 
 		glBindVertexArray(VertexArrayName);
-		glPatchParameteri(GL_PATCH_VERTICES, VertexCount);
+		glPatchParameteri(GL_PATCH_VERTICES, 4);
 		glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, &glm::vec2(16.f)[0]);
 		glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, &glm::vec4(16.f)[0]);
-		glDrawArraysInstanced(GL_PATCHES, 0, VertexCount, 1);
+		glDrawArraysInstanced(GL_PATCHES, 0, VertexData.size(), 1);
 
 		return true;
 	}
